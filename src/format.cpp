@@ -11,4 +11,8 @@ string Format::ElapsedTime(long seconds) {
     long hr = chrono::duration_cast<chrono::hours>(sec).count();
     long min = chrono::duration_cast<chrono::minutes>(chrono::seconds(seconds -(hr*3600))).count();         
     long seco = seconds -((hr*3600)+(min*60));
-    return to_string(hr) +"::"+ to_string(min)+"::"+ to_string(seco); }  
+    std::stringstream stream;
+    stream << std::setfill('0') << std::setw(2) << hr << ":"
+         << std::setfill('0') << std::setw(2) << min << ":"
+         << std::setfill('0') << std::setw(2) << seco; 
+    return stream.str(); }  

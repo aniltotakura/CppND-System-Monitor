@@ -25,6 +25,7 @@ T LinuxParser::retrievewithKey(string const &name, string const &filename) {
       }
     }
   }
+  stream.close();
   return value;
 }
 
@@ -39,6 +40,7 @@ T LinuxParser::retrieve(string const &filename) {
     std::istringstream linestream(line);
     linestream >> value;
   }
+  stream.close();
   return value;
 }
 
@@ -74,6 +76,7 @@ string LinuxParser::OperatingSystem() {
       }
     }
   }
+  filestream.close();
   return value;
 }
 
@@ -87,6 +90,7 @@ string LinuxParser::Kernel() {
     std::istringstream linestream(line);
     linestream >> os >> version >> kernel;
   }
+  stream.close();
   return kernel;
 }
 
@@ -139,7 +143,7 @@ long LinuxParser::ActiveJiffies() {
                         stol(retrievebyPosition<string>(7,line))+
                         stol(retrievebyPosition<string>(8,line))+
                         stol(retrievebyPosition<string>(9,line));
-
+  stream.close();
   return activejiffies; }
 
 long LinuxParser::IdleJiffies() { 
@@ -148,6 +152,7 @@ long LinuxParser::IdleJiffies() {
 	std::getline(stream, line);
   long idlejiffies =  stol(retrievebyPosition<string>(5,line))+
                       stol(retrievebyPosition<string>(6,line));
+  stream.close();
   return idlejiffies; 
 }
 
@@ -168,7 +173,12 @@ string LinuxParser::Command(int pid) {
   std::ifstream stream(kProcDirectory + "/"+ std::to_string(pid)+ kCmdlineFilename);
   if (stream.is_open()) {
     std::getline(stream, line);
+    if (line.length() > 20){
+        line.erase(line.begin()+20, line.end());
+        line += "...";
+      }
   }
+  stream.close();
   return line;
 }
 
@@ -181,10 +191,13 @@ string LinuxParser::Ram(int pid) {
       linestream>> key>>value;
       if (key == "VmSize:"){
         auto kb= stof(value);
-        return to_string(kb/1024);
+        string mb = to_string(kb/1024);
+        mb.erase(mb.begin() + mb.find('.')+3, mb.end());
+        return mb;
       }
     } 
   }
+  stream.close();
   return string();
 }
 
@@ -200,6 +213,7 @@ string LinuxParser::Uid(int pid) {
       }
     }
   }
+  stream.close();
   return string();
 }
 
@@ -211,22 +225,27 @@ string LinuxParser::User(int pid) {
     std::istringstream linestream(line);
     linestream >> key >> value1>> value2;
     if (value2 == Uid(pid)){
+      if (key.length() > 4){
+        key.erase(key.begin()+4, key.end());
+        key += "...";
+      }
       return key;
     }
   }
-return string(); 
+  stream.close();
+  return string(); 
 }
 
 long LinuxParser::UpTime(int pid) {
   auto stream = std::ifstream(kProcDirectory+ "/"+ std::to_string(pid)+ kStatFilename);
 	string line;
 	std::getline(stream, line);
-  long uptime = stol(retrievebyPosition<string>(22, line));
-  return uptime/sysconf(_SC_CLK_TCK); 
+  long uptime = UpTime() - stol(retrievebyPosition<string>(22, line))/sysconf(_SC_CLK_TCK);
+  stream.close();
+  return uptime; 
 }
 
 float LinuxParser::pidCpu(int pid){
-    long sysuptime = UpTime();
     auto stream = std::ifstream(kProcDirectory+ "/"+ std::to_string(pid)+ kStatFilename);
 	  string line;
 	  getline(stream, line);
@@ -235,11 +254,10 @@ float LinuxParser::pidCpu(int pid){
                       stol(retrievebyPosition<string>(16,line))+
                       stol(retrievebyPosition<string>(17,line));
     long start_time= UpTime(pid);
-    float seconds = (float) sysuptime - (float) start_time;
-    float cpu_usage = (float) (total_time/sysconf(_SC_CLK_TCK))/seconds;
-    
+    float cpu_usage = (float) (total_time/sysconf(_SC_CLK_TCK))/start_time;
     if (cpu_usage < 0 || isnan(cpu_usage)){
       cpu_usage =0;
     }
+  stream.close();
   return cpu_usage;
 }
